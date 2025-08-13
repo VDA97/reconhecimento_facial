@@ -1,15 +1,17 @@
 import cv2
 import os
 
+
 class VideoCamera(object):
     def __init__(self):
         self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-        self.video = cv2.VideoCapture(0)  # Abertura da câmera
+        self.video = cv2.VideoCapture(0)  # Abertura da câmera no meu caso é notebook então, é index=0
 
-        if not self.video.isOpened(): # Verifica se camera está aberta
+        if not self.video.isOpened():  # Verifica se camera está aberta
             print("Erro ao acessar a câmera.")
 
         self.img_dir = "./tmp"
+
         # Garanta que o diretório tmp seja criado
         if not os.path.exists(self.img_dir):
             os.makedirs(self.img_dir)  # Cria a pasta `tmp` se não existir
@@ -19,24 +21,25 @@ class VideoCamera(object):
 
     def restart(self):
         self.video.release()  # Reinicia a câmera
-        self.video = cv2.VideoCapture(0) # Cria instancia novamente
+        self.video = cv2.VideoCapture(0)  # Cria instancia, se vc não ficar isso a camera nao inicia mais.
 
     # Retorna o frame modo normal do objeto
-    def get_camera(self):
-        ret, frame = self.video.read()  # Leitura do frame
-        if not ret:  # Verifica se a captura do frame foi bem-sucedida
-            print("Falha ao capturar o frame.")
-            return None
+    def get_camera(self, retries=3):
+        for _ in range(retries):
+            if not self.video.isOpened():
+                print("get_camera error: Camera not opened.")
+                return None
+            ret, frame = self.video.read()
+            if ret and frame is not None:
+                return ret, frame
+            print("get_camera warning: Failed to read frame, retrying...")
+        print("get_camera error: All retries failed.")
+        return None
 
-        # Retorna o frame com a face detectada como imagem JPEG
-        ret, jpeg = cv2.imencode('.jpg', frame)
-        return ret, frame  # Converte o frame para formato JPEG em bytes
-
-    # Retorna Camera modo Detecção Facial
     def detect_face(self):
         ret, frame = self.get_camera()  # Leitura do frame
         if not ret:  # Verifica se a captura do frame foi bem-sucedida
-            print("Falha ao capturar o frame.")
+            print("detect_face error: get_camera failed")
             return None
 
         # Defina a região de interesse (ROI) onde o rosto será detectado
@@ -51,28 +54,30 @@ class VideoCamera(object):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Detecta faces no frame
-        # Detecção de rostos apenas na ROI quadrada
-        faces = self.face_cascade.detectMultiScale(
-            gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
         cv2.ellipse(frame, (centro_x, centro_y), (a, b), 0, 0, 360, (0, 0, 255), 10)
 
         for (x, y, w, h) in faces:
             cv2.ellipse(frame, (centro_x, centro_y), (a, b), 0, 0, 360, (0, 255, 0), 10)
+
         # Retorna o frame com a face detectada como imagem JPEG
         ret, jpeg = cv2.imencode('.jpg', frame)
         return jpeg.tobytes()  # Converte o frame para formato JPEG em bytes
 
-    def sample_faces(self, frame):
+    def sample_faces(self):
         ret, frame = self.get_camera()
+        if not ret:  # Verifica se a captura do frame foi bem-sucedida
+            print("sample_faces error : get_camera failed")
+            return None
         frame = cv2.flip(frame, 180)
         frame = cv2.resize(frame, (480, 360))
 
         # Detecta a face
         faces = self.face_cascade.detectMultiScale(
-        frame, minNeighbors=20, minSize=(30, 30), maxSize=(400, 400))
+            frame, minNeighbors=20, minSize=(30, 30), maxSize=(400, 400))
 
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 4)
-            cropped_face = frame[y:y+h, x:x+w]
+            cropped_face = frame[y:y + h, x:x + w]
             return cropped_face  # Retorna o rosto recortado
