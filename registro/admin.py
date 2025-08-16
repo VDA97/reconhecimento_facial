@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Funcionario, ColetaFaces, Treinamento
+from registro.models import Funcionario, ColetaFaces, Treinamento
 
 class ColetaFacesInline(admin.StackedInline): 
     model = ColetaFaces

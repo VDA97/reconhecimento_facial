@@ -1,10 +1,10 @@
 import cv2
 import os
 from django.shortcuts import render, redirect
-from .forms import FuncionarioForm, ColetaFacesForm
-from .models import Funcionario, ColetaFaces
+from registro.forms import FuncionarioForm, ColetaFacesForm
+from registro.models import Funcionario, ColetaFaces
 from django.http import StreamingHttpResponse
-from .camera import VideoCamera
+from registro.camera import VideoCamera
 
 camera_detection = VideoCamera()  # Instância da classe VideoCamera
 

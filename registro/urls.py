@@ -1,5 +1,5 @@
 from django.urls import path 
-from .views import criar_funcionario, criar_coleta_faces, face_detection
+from registro.views import criar_funcionario, criar_coleta_faces, face_detection
 
 urlpatterns = [    
     path('', criar_funcionario, name='criar_funcionario'),

@@ -1,5 +1,5 @@
 from django import forms
-from .models import Funcionario, ColetaFaces
+from registro.models import Funcionario, ColetaFaces
 
 #ModelForm é do import forms.
 class FuncionarioForm(forms.ModelForm):
