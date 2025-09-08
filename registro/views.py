@@ -1,12 +1,14 @@
 import cv2
 import os
 from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.http import StreamingHttpResponse
 from registro.forms import FuncionarioForm, ColetaFacesForm
 from registro.models import Funcionario, ColetaFaces
-from django.http import StreamingHttpResponse
 from registro.camera import VideoCamera
 
-camera_detection = VideoCamera()  # Instância da classe VideoCamera
+# Instância da classe VideoCamera
+camera_detection = VideoCamera()
 
 
 # Captura o frame com face detectada
@@ -26,13 +28,14 @@ def face_detection(request):
                                      boundary=frame')
 
 
+# Cria um novo funcionário e o redireciona para a coleta de faces
 def criar_funcionario(request):
     if request.method == 'POST':
         form = FuncionarioForm(request.POST, request.FILES)
         if form.is_valid():
             funcionario = form.save()
-            return redirect('criar_coleta_faces',
-                            funcionario_id=funcionario.id)
+            # Redireciona para o primeiro passo do fluxo de coleta de faces
+            return redirect(f'/criar_coleta_faces/{funcionario.id}?passo=1')
     else:
         form = FuncionarioForm()
     return render(request, 'criar_funcionario.html', {'form': form})
@@ -40,31 +43,29 @@ def criar_funcionario(request):
 
 # Cria uma função para extrair e retornar o file_path
 def extract(camera_detection, funcionario_slug):
-    amostra = 0  # Amostras inicial
-    numeroAmostras = 10  # Numero de Amostra para extrair
-    largura, altura = 220, 220  # largura, altura forma quadradinho
-    file_paths = []  # lista de path das amostras
+    amostra = 0
+    numeroAmostras = 30
+    largura, altura = 220, 220
+    file_paths = []
 
-    while amostra < numeroAmostras:  # faz um loop até 10 amostra
-        crop = camera_detection.sample_faces()  # Captura as faces
+    while amostra < numeroAmostras:
+        crop = camera_detection.sample_faces()
 
-        if crop is not None:  # se não for None,
-            amostra += 1  # conta 1
+        if crop is not None:
+            amostra += 1
+            face = cv2.resize(crop, (largura, altura))
+            imagemCinza = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
 
-            face = cv2.resize(crop, (largura, altura))  # resize
-            imagemCinza = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)  # Passa para cinza
-
-            # Define o caminho da imagem
-            file_name_path = f'./tmp/{funcionario_slug}_{amostra}.jpg'  # exemplo> leticia_FUNC_XXXX_1.jpg
+            file_name_path = f'./tmp/{funcionario_slug}_{amostra}.jpg'
             cv2.imwrite(file_name_path, imagemCinza)
-            file_paths.append(file_name_path)  # Adiciona na lista
+            file_paths.append(file_name_path)
         else:
             print("Face não encontrada")
 
         if amostra >= numeroAmostras:
-            break  # deu 10 amostra para
+            break
 
-    camera_detection.restart()  # Reinicia a câmera após as capturas
+    camera_detection.restart()
     return file_paths
 
 
@@ -72,46 +73,71 @@ def face_extract(context, funcionario):
     num_coletas = ColetaFaces.objects.filter(
         funcionario__slug=funcionario.slug).count()
 
-    print(num_coletas)  # quantidade de imagens que funcionario tem cadastrado.
+    print(num_coletas)
 
-    if num_coletas >= 10:  # Verifica se limte de coletas foi atingido
+    if num_coletas >= 90:
         context['erro'] = 'Limite máximo de coletas atingido.'
     else:
-        files_paths = extract(camera_detection, funcionario.slug)  # passa camera e slug do funcionario
-        print(files_paths)  # Paths Rostos
+        files_paths = extract(camera_detection, funcionario.slug)
+        print(files_paths)
 
         for path in files_paths:
-            # Cria uma instância de ColetaFaces e salva a imagem
             coleta_face = ColetaFaces.objects.create(funcionario=funcionario)
             coleta_face.image.save(os.path.basename(path), open(path, 'rb'))
-            os.remove(path)  # Remove o arquivo temporário após o salvamento
+            os.remove(path)
 
-        # Atualiza o contexto com as coletas salvas
         context['file_paths'] = ColetaFaces.objects.filter(
             funcionario__slug=funcionario.slug)
-        context['extracao_ok'] = True  # Define sinalizador de sucesso
+        context['extracao_ok'] = True
 
     return context
 
 
-# Cria coleta de faces (Registro)
 def criar_coleta_faces(request, funcionario_id):
-    print(funcionario_id)  # Identificador do funcionário cadastrado
-    funcionario = Funcionario.objects.get(id=funcionario_id)  # Resgata o funcionário
+    # Obtém o passo da URL. Se não existir, define como 1.
+    passo = int(request.GET.get('passo', 1))
 
-    botao_clicado = request.GET.get('clicked', 'False') == 'True'
+    # A variável 'extracao_ok' verifica se as fotos foram tiradas com sucesso
+    extracao_ok = request.GET.get('extracao_ok', 'False') == 'True'
 
+    # Mapeia cada passo a uma imagem de instrução
+    mapa_imagens = {
+        1: 'centro.png',
+        2: 'direita.png',
+        3: 'esquerda.png',
+    }
+    instrucao_imagem = mapa_imagens.get(passo, 'centro.png')
+
+    # Resgata o funcionário, necessário para a lógica e o template
+    try:
+        funcionario = Funcionario.objects.get(id=funcionario_id)
+    except Funcionario.DoesNotExist:
+        # Redireciona para uma página inicial se o funcionário não for encontrado
+        return redirect('url_da_pagina_inicial')
+
+    # Lógica principal: o que acontece quando o botão "Tirar Fotos" é clicado
+    if request.method == 'GET' and request.GET.get('clicked') == 'True':
+        print(f"Iniciando extração de faces no passo {passo}...")
+
+        # Chama sua função de extração de faces
+        face_extract({}, funcionario)
+
+        # Redireciona para a mesma página, mas com o estado atualizado
+        # 'extracao_ok=True' fará com que as fotos e o botão "CONTINUAR" apareçam
+        return redirect(f'/criar_coleta_faces/{funcionario.id}?extracao_ok=True&passo={passo}')
+
+    # Prepara o contexto para renderizar a página
     context = {
-        'funcionario': funcionario,  # Passa o objeto funcionario para o template
-        'face_detection': face_detection,  # passa camera aqui para renderizar no template
-        'valor_botao': botao_clicado,
+        'funcionario': funcionario,
+        'passo': passo,
+        'extracao_ok': extracao_ok,
+        'instrucao_imagem': instrucao_imagem,
     }
 
-    if botao_clicado:
-        print("Cliquei em Extrair Imagens!")
-        context = face_extract(context, funcionario)  # Chama a função de extração
+    # Se a extração foi bem-sucedida, carregue as últimas fotos tiradas
+    if extracao_ok:
+        context['file_paths'] = ColetaFaces.objects.filter(
+            funcionario=funcionario
+        ).order_by('-id')[:30]
 
     return render(request, 'criar_coleta_faces.html', context)
-
-
-

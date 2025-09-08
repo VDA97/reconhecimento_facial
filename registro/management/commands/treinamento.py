@@ -18,8 +18,7 @@ class Command(BaseCommand):
         print(cv2.__version__)
 
         # Inicializa o classificador EigenFace
-        eigenFace = cv2.face.LBPHFaceRecognizer_create(
-            radius=1, neighbors=8, grid_x=8, grid_y=8)
+        eigenFace = cv2.face.EigenFaceRecognizer_create(num_components=100, threshold=8000)
 
         faces, labels = [], []
         erro_count = 0

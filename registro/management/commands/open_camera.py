@@ -21,7 +21,8 @@ class Command(BaseCommand):
             if not ret:
                 self.stdout.write(self.style.ERROR('Erro ao capturar o frame'))
                 break
-            
+
+            frame = cv2.flip(frame, 1)  # <--- ADD THIS LINE
             # Exibe o frame
             cv2.imshow('Camera', frame)
             

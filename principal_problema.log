@@ -1,0 +1,22 @@
+The core problem wasn't a bug in KivyMD or Django,
+but a subtle difference in how the two scripts were preparing the image
+for the facial recognition model.
+The model is a picky eater—it needs its "food" (the face image) prepared in a very specific way.
+
+Here's the breakdown of why the second version finally worked:
+
+1. Consistent Image Processing Pipeline
+In your first script, you were resizing the full video frame,
+then converting it to grayscale, and then processing a cropped face from the original,
+un-resized frame. This created a mismatch.
+The model was trained on images from a consistent, resized source, but your app was feeding it images cropped from a different-sized source.
+
+We fixed this by ensuring that the entire pipeline—from resizing the full frame to cropping the face—is done on a single, consistent image (frame = cv2.resize(frame, (480, 360))).
+
+2. The Order of Operations
+The order of operations matters. The original working script performed the horizontal flip (cv2.flip(frame, 1)) as the very last step before displaying the image. Your KivyMD app was doing this flip earlier, which could have been confusing the recognition model. By moving the flip to the end, we made the pipeline an exact replica of the one that works.
+
+3. Essential Pre-processing Steps
+As we discussed before, the equalizeHist() and normalize() functions are crucial for the EigenFace model. These functions standardize the lighting and contrast of the face image. Without them, even a well-trained model would struggle to recognize faces in different lighting conditions.
+
+In short, the fix wasn't about one single line of code, but about ensuring that the entire process of capturing, preparing, and presenting the image was identical in both your working Django script and your KivyMD app.

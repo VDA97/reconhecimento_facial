@@ -31,6 +31,7 @@ class VideoCamera(object):
                 return None
             ret, frame = self.video.read()
             if ret and frame is not None:
+                frame = cv2.flip(frame, 1)  # <--- ADD THIS LINE
                 return ret, frame
             print("get_camera warning: Failed to read frame, retrying...")
         print("get_camera error: All retries failed.")

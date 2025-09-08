@@ -13,7 +13,7 @@ class Command(BaseCommand):
 
     def reconhecer_faces(self):
         face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-        reconhecedor = cv2.face.LBPHFaceRecognizer_create(radius=2, neighbors=12, grid_x=8, grid_y=8)
+        reconhecedor = cv2.face.EigenFaceRecognizer_create(num_components=100, threshold=8000)
 
         # Carregar o modelo de treinamento
         treinamento = Treinamento.objects.first()
@@ -40,17 +40,11 @@ class Command(BaseCommand):
 
             frame = cv2.resize(frame, (480, 360))
             imagemCinza = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces_detectadas = face_cascade.detectMultiScale(imagemCinza, minNeighbors=20, minSize=(30, 30),
-                                                             maxSize=(400, 400))
+            faces_detectadas = face_cascade.detectMultiScale(imagemCinza, scaleFactor=1.1, minNeighbors=5,
+                                                             minSize=(30, 30), maxSize=(400, 400))
 
             for (x, y, l, a) in faces_detectadas:
-                # imagemFace = imagemCinza[y-10:y+a+10, x-10:x+l+10]
-
                 imagemFace = imagemCinza[y:y + a, x:x + l]
-                if imagemFace.size == 0:
-                    continue
-                imagemFace = cv2.resize(imagemFace, (largura, altura))
-
                 imagemFace = cv2.resize(imagemFace, (largura, altura))
 
                 # Aplicar mesmo pré-processamento usado no treinamento
@@ -59,9 +53,9 @@ class Command(BaseCommand):
 
                 cv2.rectangle(frame, (x, y), (x + l, y + a), (0, 255, 0), 2)
                 label, confidence = reconhecedor.predict(imagemFace)
-
+                print(f"O valor de confiança do reconhecimento é: {confidence}")
                 # Só mostrar reconhecimento se confiança for boa
-                if confidence < 50:  # ajuste este valor conforme necessário
+                if confidence < 9000:  # ajuste este valor conforme necessário
                     try:
                         funcionario = Funcionario.objects.get(id=label)
                         nome = str(funcionario.nome).strip("(),'")
@@ -70,11 +64,10 @@ class Command(BaseCommand):
                     except Funcionario.DoesNotExist:
                         cv2.putText(frame, "Desconhecido", (x, y + a + 30), font, 1, (0, 0, 255), 2)
                 else:
-                    cv2.putText(frame, f"Conf: {int(confidence)}", (x, y + a + 50), font, 1, (255, 255, 0), 2)
+                    cv2.putText(frame, "Baixa confiabilidade", (x, y + a + 30), font, 1, (0, 0, 255), 2)
 
-                    # cv2.putText(frame, "Baixa confiança", (x, y + a + 30), font, 1, (0, 0, 255), 2)
-
-            cv2.imshow("Reconhecimento Facial", frame)
+            frame = cv2.flip(frame, 1)  # <--- ADD THIS LINE
+            cv2.imshow("Prototipo Reconhecimento Facial", frame)
 
             # Parar ao pressionar a tecla 'q'
             if cv2.waitKey(1) & 0xFF == ord('q'):
