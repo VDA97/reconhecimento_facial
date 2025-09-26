@@ -75,7 +75,7 @@ class Command(BaseCommand):
             # Salva o modelo no banco de dados
             with open(model_filename, 'rb') as f:
                 treinamento, created = Treinamento.objects.get_or_create()
-                treinamento.modelo.save('classificadorEigen.xml', File(f))
+                treinamento.modelo.save('classificadorEigen.yml', File(f))
 
             # Remove o arquivo temporário e exibe mensagens de status
             os.remove(model_filename)

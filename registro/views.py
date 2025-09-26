@@ -27,6 +27,23 @@ def face_detection(request):
                                  content_type='multipart/x-mixed-replace; \
                                      boundary=frame')
 
+# Cria streaming para reconhecimento facial
+def gen_recognize_face(camera_detection):
+    while True:
+        frame = camera_detection.recognize_face()
+        if frame is None:
+            continue
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+
+
+def face_recognition(request):
+    """
+    View que retorna o streaming de reconhecimento facial.
+    """
+    return StreamingHttpResponse(gen_recognize_face(camera_detection),
+                                 content_type='multipart/x-mixed-replace; \
+                                     boundary=frame')
 
 # Cria um novo funcionário e o redireciona para a coleta de faces
 def criar_funcionario(request):

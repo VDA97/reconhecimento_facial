@@ -1,8 +1,9 @@
 from django.urls import path 
-from registro.views import criar_funcionario, criar_coleta_faces, face_detection
+from registro.views import criar_funcionario, criar_coleta_faces, face_detection, face_recognition
 
 urlpatterns = [    
     path('', criar_funcionario, name='criar_funcionario'),
     path('criar_coleta_faces/<int:funcionario_id>', criar_coleta_faces, name='criar_coleta_faces'),
-    path('face_detection/', face_detection, name='face_detection')
+    path('face_detection/', face_detection, name='face_detection'),
+    path('face_recognition/', face_recognition, name='face_recognition')
 ]

@@ -10,13 +10,10 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         self.reconhecer_faces()
-        self.conf = "None"
-        self.result = False
 
     def reconhecer_faces(self):
         face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
         reconhecedor = cv2.face.EigenFaceRecognizer_create(num_components=100, threshold=8000)
-
 
         # Carregar o modelo de treinamento
         treinamento = Treinamento.objects.first()
@@ -24,7 +21,7 @@ class Command(BaseCommand):
             print("Modelo de treinamento não encontrado.")
             return
 
-        model_path = os.path.join(settings.MEDIA_ROOT, treinamento.modelo.name)  # classificadorEigen.xml
+        model_path = os.path.join(settings.MEDIA_ROOT, treinamento.modelo.name)  # classificadorEigen.yml
         reconhecedor.read(model_path)
 
         camera = cv2.VideoCapture(0)
@@ -57,21 +54,19 @@ class Command(BaseCommand):
                 cv2.rectangle(frame, (x, y), (x + l, y + a), (0, 255, 0), 2)
                 label, confidence = reconhecedor.predict(imagemFace)
                 print(f"O valor de confiança do reconhecimento é: {confidence}")
-                if confidence < 8000:  # ajuste este valor conforme necessário
+                # Só mostrar reconhecimento se confiança for boa
+                if confidence < 9000:  # ajuste este valor conforme necessário
                     try:
                         funcionario = Funcionario.objects.get(id=label)
                         nome = str(funcionario.nome).strip("(),'")
-                        self.conf = f"{nome} ({int(confidence)})"
-                        #cv2.putText(frame, self.conf, (x, y + a + 30), font, 1, (0, 255, 0), 2)
+                        conf = f"{nome} ({int(confidence)})"
+                        cv2.putText(frame, conf, (x, y + a + 30), font, 1, (0, 255, 0), 2)
                     except Funcionario.DoesNotExist:
-                        self.conf = "Desconhecido"
-                        #cv2.putText(frame, "Desconhecido", (x, y + a + 30), font, 1, (0, 0, 255), 2)
+                        cv2.putText(frame, "Desconhecido", (x, y + a + 30), font, 1, (0, 0, 255), 2)
                 else:
-                    self.conf = "Baixa confiabilidade"
-                   # cv2.putText(frame, "Baixa confiabilidade", (x, y + a + 30), font, 1, (0, 0, 255), 2)
+                    cv2.putText(frame, "Baixa confiabilidade", (x, y + a + 30), font, 1, (0, 0, 255), 2)
 
             frame = cv2.flip(frame, 1)  # <--- ADD THIS LINE
-            cv2.putText(frame, self.conf, (x, y + a + 30), font, 1, (0, 255, 0), 2)
             cv2.imshow("Prototipo Reconhecimento Facial", frame)
 
             # Parar ao pressionar a tecla 'q'
